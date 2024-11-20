@@ -314,8 +314,7 @@ QString WebComWidget::get_video_info(const QString& yt_vid){
     QString vinfo = "";
 
     std::unordered_map<QString, QString> params;
-    params["key"] = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
-    //params["key"] = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w";
+    params["key"] = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w";
 
     urlStr = get_url(urlStr, params);
 
