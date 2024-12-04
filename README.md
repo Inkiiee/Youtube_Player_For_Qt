@@ -24,7 +24,7 @@ Download the video content using the constructed stream URL.
 ## 7. Play the video using QMediaPlayer
 Use QMediaPlayer to play the downloaded video.
 
-#Program Image
+# Program Image
 ![스크린샷(177)](https://github.com/user-attachments/assets/160c2ebd-f403-4f8b-84be-692d4e970e53)
 <main page>
 
