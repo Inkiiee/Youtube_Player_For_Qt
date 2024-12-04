@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/">
+        <file>search_page.qml</file>
+        <file>search_icon.png</file>
+        <file>list_check_icon.png</file>
+        <file>next_video_icon.png</file>
+        <file>pause_icon.png</file>
+        <file>play_icon.png</file>
+        <file>pre_video_icon.png</file>
+        <file>refeat_icon.png</file>
+        <file>play_list.qml</file>
+        <file>back_icon.png</file>
+        <file>x_icon.png</file>
+        <file>again_replay_mode.png</file>
+        <file>auto_replay_mode.png</file>
+        <file>download_icon.png</file>
+    </qresource>
+</RCC>

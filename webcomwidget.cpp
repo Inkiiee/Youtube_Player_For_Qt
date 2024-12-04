@@ -1,5 +1,5 @@
 #include "webcomwidget.h"
-#include "./ui_webcomwidget.h"
+#include "streamiodevice.h"
 
 #include <QSslConfiguration>
 #include <QNetworkReply>
@@ -11,7 +11,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QFile>
 #include <QNetworkCookieJar>
 #include <QNetworkCookie>
 #include <QQmlEngine>
@@ -19,8 +18,13 @@
 #include <QMediaPlayer>
 #include <QVideoWidget>
 #include <QAudioOutput>
-#include <memory>
+#include <QVBoxLayout>
 #include <QTimer>
+#include <QSlider>
+#include <QIcon>
+#include <QFile>
+
+#include <memory>
 
 std::map<int, QString> error_code;
 const int err_no_error = 0;
@@ -55,6 +59,81 @@ void init_error(){
     error_code[12] = "Not found n decrypt function name";
     error_code[13] = "Not found n decrypt function body";
     error_code[14] = "Failed decrypt n parameter";
+}
+
+#include <QIODevice>
+#include <QByteArray>
+#include <QDebug>
+
+QByteArray WebComWidget::get_yt_thumbnail(const QString& thumb_url){
+    QNetworkAccessManager man;
+    QNetworkRequest request_content{QUrl(thumb_url)};
+
+    QByteArray image;
+    QString url = thumb_url;
+    auto reply = man.get(request_content);
+    QEventLoop loop;
+
+    if(url.startsWith("//")) url = "https:" + url;
+
+    QObject::connect(reply, &QNetworkReply::finished, [this, &loop, reply, &image, url](){
+        if(reply->error() == QNetworkReply::NoError)
+            image = reply->readAll();
+        else
+            qDebug()<<"thumbnail load error: "<<reply->error()<<" url: "<<url;
+        reply->deleteLater();
+        loop.quit();
+    });
+    loop.exec();
+
+    return image;
+}
+
+QJsonArray WebComWidget::search_yt_contents(const QString& text){
+    QString urlStr = "https://www.youtube.com/youtubei/v1/search";
+
+    std::unordered_map<QString, QString> params;
+    //params["key"] = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
+    params["key"] = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w";
+
+    set_header();
+    QNetworkRequest request_content;
+    request_content.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
+    request_content.setUrl(QUrl(get_url(urlStr, params)));
+
+    QJsonObject client_info;
+    client_info["clientName"] = "WEB";
+    client_info["clientVersion"] = "2.20241113";
+
+    QJsonObject context;
+    context["client"] = client_info;
+
+    QJsonObject post_data;
+    post_data["context"] = context;
+    post_data["query"] = text;
+
+    QJsonArray answer;
+
+    auto reply = manager->post(request_content, QJsonDocument(post_data).toJson());
+    QEventLoop loop;
+    QObject::connect(reply, &QNetworkReply::finished, [this, reply, &answer, &loop](){
+        if(reply->error() == QNetworkReply::NoError){
+            QJsonObject respone = QJsonDocument::fromJson(reply->readAll()).object();
+            auto&& temp = respone["contents"].toObject();
+            temp = temp["twoColumnSearchResultsRenderer"].toObject();
+            temp = temp["primaryContents"].toObject();
+            temp = temp["sectionListRenderer"].toObject();
+            temp = temp["contents"].toArray()[0].toObject()["itemSectionRenderer"].toObject();
+            answer = temp["contents"].toArray();
+        }
+        else qDebug()<<reply->error();
+
+        reply->deleteLater();
+        loop.quit();
+    });
+    loop.exec();
+
+    return answer;
 }
 
 //에러가 발생시 이를 알려주고 프로그램 종료
@@ -314,6 +393,7 @@ QString WebComWidget::get_video_info(const QString& yt_vid){
     QString vinfo = "";
 
     std::unordered_map<QString, QString> params;
+    //params["key"] = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
     params["key"] = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w";
 
     urlStr = get_url(urlStr, params);
@@ -350,15 +430,6 @@ QString WebComWidget::get_video_info(const QString& yt_vid){
     QObject::connect(reply.get(), &QNetworkReply::finished, [&loop, &reply, &vinfo](){
         if (reply->error() == QNetworkReply::NoError)
             vinfo = QString::fromUtf8(reply->readAll());
-
-
-        QFile file("C:/Users/User/Desktop/video_info.txt");
-        file.open(QFile::WriteOnly | QFile::Text);
-
-        QTextStream out(&file);
-        out<<vinfo;
-        file.close();
-
 
         loop.quit();
     });
@@ -565,86 +636,190 @@ QJsonArray WebComWidget::get_yt_video_formats(const QString& video_url){
     return formats;
 }
 
+int WebComWidget::play(const QString& video_id){
+    QString base = "https://www.youtube.com/watch";
+    std::unordered_map<QString, QString> params;
+    params["v"] = video_id;
+
+    QString video_url = get_url(base, params);
+    auto formats = get_yt_video_formats(video_url);
+    QString url = formats[0].toObject()["decryptedUrl"].toString();
+
+    qDebug()<<url;
+    request.setUrl(QUrl(url));
+    set_header();
+
+    auto format = formats[0].toObject();
+    QString str_length = format["contentLength"].toString();
+    QString mime = format["mimeType"].toString().split(";")[0];
+    QString ext = mime.split('/')[1];
+    if(!ext.isEmpty()) extention = ext;
+
+    StreamIODevice * device = new StreamIODevice(manager, &request, batch_size, this);
+
+    player->setSourceDevice(device);
+    player->play();
+
+    return 0;
+}
+
 WebComWidget::WebComWidget(QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::WebComWidget)
-{
-    ui->setupUi(this);
+    : QWidget(parent){
     QVBoxLayout * vbox = new QVBoxLayout(this);
-    QMediaPlayer * player = new QMediaPlayer(this);
+    player = new QMediaPlayer(this);
     QVideoWidget * video = new QVideoWidget(this);
     QAudioOutput * audio = new QAudioOutput(this);
     player->setVideoOutput(video);
     player->setAudioOutput(audio);
-//---------------------------r
-    connect(player, &QMediaPlayer::errorOccurred, [](QMediaPlayer::Error error) {
-        qDebug() << "Error occurred:" << error;
+
+    QWidget * hbox_widget = new QWidget(this);
+    QHBoxLayout * hbox = new QHBoxLayout(hbox_widget);
+    slider = new QSlider(Qt::Horizontal);
+    play_time = new QLabel("00:00", this);
+    video_len = new QLabel("00:00", this);
+
+    QRect rect = this->rect();
+    slider->setGeometry(rect.x() +10, rect.y() + rect.height(), rect.width() - 20, 20);
+
+    play_btn = new QPushButton(this);
+    QPushButton * pre_video_btn = new QPushButton(this);
+    QPushButton * next_video_btn = new QPushButton(this);
+    QPushButton * check_list_btn = new QPushButton(this);
+    download_btn = new QPushButton(this);
+    pre_video_btn->setIcon(QIcon(":/pre_video_icon.png"));
+    next_video_btn->setIcon(QIcon(":/next_video_icon"));
+    check_list_btn->setIcon(QIcon(":/list_check_icon.png"));
+    download_btn->setIcon(QIcon(":/download_icon.png"));
+
+    QObject::connect(download_btn, &QPushButton::clicked, [this](){
+        emit user_request(download_video);
+        download_btn->setEnabled(false);
     });
-    connect(player, &QMediaPlayer::mediaStatusChanged, [](QMediaPlayer::MediaStatus status) {
-        qDebug() << "Media status changed:" << status;
+    QObject::connect(slider, &QSlider::sliderPressed, [this](){
+        isChange = true;
     });
-//---------------------------------
+    QObject::connect(slider, &QSlider::sliderReleased, [this](){
+        StreamIODevice * device = (StreamIODevice*)(player->sourceDevice());
+        if(device == nullptr) return;
+
+        double trans_rate = (double)(device->size()) / player->duration();
+        if(trans_rate < 0) return;
+
+        player->stop();
+        qint64 batch = device->get_batch_size();
+        qint64 position = slider->sliderPosition();
+        qint64 offset = position * trans_rate;
+
+        if(!device->seek(offset)){
+            qint64 block = offset/batch;
+            QEventLoop loop;
+            QTimer timer;
+            QObject::connect(&timer, &QTimer::timeout, this, [&timer, &loop, device, block](){
+                if(device->isBlockAvailable(block)){
+                    timer.stop();
+                    loop.quit();
+                }
+            });
+            timer.start(100);
+            loop.exec();
+        }
+
+        emit user_request(req_play);
+        player->setPosition(position);
+        isChange = false;
+    });
+    QObject::connect(player, &QMediaPlayer::positionChanged, [this](qint64 position){
+        if(!isChange)
+            slider->setSliderPosition(position);
+        int sec = position / 1000;
+        int min = sec / 60;
+        sec = sec % 60;
+        play_time->setText(QString::asprintf("%02d:%02d",min, sec));
+
+        if(player->position() >= player->duration()){
+            play_btn->setIcon(QIcon(":/refeat_icon.png"));
+            emit user_request(end_video);
+        }
+    });
+    QObject::connect(player, &QMediaPlayer::durationChanged, [this](qint64 duration){
+        slider->setRange(0, duration);
+        int sec = duration / 1000;
+        int min = sec / 60;
+        sec = sec % 60;
+        video_len->setText(QString::asprintf("%02d:%02d",min, sec));
+
+        play_btn->setIcon(QIcon(":/pause_icon.png"));
+    });
+    QObject::connect(play_btn, &QPushButton::clicked, [this](){
+        if(player->isPlaying())
+            emit user_request(req_pause);
+        else if(player->position() >= player->duration())
+            emit user_request(refeat);
+        else
+            emit user_request(req_play);
+    });
+    QObject::connect(pre_video_btn, &QPushButton::clicked, [this](){ emit user_request(pre_video);});
+    QObject::connect(next_video_btn, &QPushButton::clicked, [this](){ emit user_request(next_video);});
+    QObject::connect(check_list_btn, &QPushButton::clicked, [this](){ emit user_request(show_playlist);});
+
     QSizePolicy sp;
     sp.setVerticalPolicy(QSizePolicy::Fixed);
     sp.setHorizontalPolicy(QSizePolicy::Expanding);
-    ui->horizontalLayoutWidget->setSizePolicy(sp);
-
-    vbox->addWidget(ui->horizontalLayoutWidget);
+    hbox_widget->setSizePolicy(sp);
     vbox->addWidget(video);
+    hbox->addWidget(pre_video_btn);
+    hbox->addWidget(play_btn);
+    hbox->addWidget(next_video_btn);
+    hbox->addWidget(play_time);
+    hbox->addWidget(slider);
+    hbox->addWidget(video_len);
+    hbox->addWidget(download_btn);
+    hbox->addWidget(check_list_btn);
+    vbox->addWidget(hbox_widget);
 
     manager = new QNetworkAccessManager(this);
     ckj = new QNetworkCookieJar(this);
     manager->setCookieJar(ckj);
 
-    get_btn = ui->get_btn;
-    url_edit = ui->url_edit;
-    url_edit->setText("https://www.youtube.com/watch?v=EBMwWyAPtmI");
-
     init_error();
+    resize(600, 400);
+}
 
-    connect(get_btn, &QPushButton::clicked, this, [this, player](){
-        QString video_url = url_edit->text();
-        auto formats = get_yt_video_formats(video_url);
-        QString url = formats[0].toObject()["decryptedUrl"].toString();
+void WebComWidget::play_end(){
+    player->stop();
+    auto device = player->sourceDevice();
+    if(device != nullptr) delete device;
+    player->setSourceDevice(nullptr);
+}
 
-        qDebug()<<url;
-        request.setUrl(QUrl(url));
-        set_header();
+void WebComWidget::pause_video(){
+    play_btn->setIcon(QIcon(":/play_icon.png"));
+    player->pause();
+}
+void WebComWidget::play_video(){
+    play_btn->setIcon(QIcon(":/pause_icon.png"));
+    player->play();
+}
 
-        auto format = formats[0].toObject();
-        QString str_length = format["contentLength"].toString();
-        QString mime = format["mimeType"].toString().split(";")[0];
+void WebComWidget::download(const QString& name){
+    QString file_name = name + "." + extention;
+    download_file.setFileName(file_name);
+    if(!download_file.open(QFile::WriteOnly)){
+        QMessageBox::information(this, "error", "file create fail");
+        return;
+    }
 
-        QFile file("temp_video");
-        file.open(QFile::WriteOnly);
+    download_reply = manager->get(request);
+    QObject::connect(download_reply, &QNetworkReply::finished, [this](){
+        download_file.write(download_reply->readAll());
+        download_file.close();
+        download_reply->deleteLater();
+        download_btn->setEnabled(true);
 
-        batch_size = 1024 * 1024;
-        i = 0;
-        int len = 0;
-
-        do{
-            request.setRawHeader("Range", QString("bytes=%1-%2").arg(i).arg(i+batch_size -1).toUtf8());
-            auto reply = manager->get(request);
-
-            QEventLoop loop;
-            QObject::connect(reply, &QNetworkReply::finished, [this, reply, &loop, &len, &file](){
-                len = file.write(reply->readAll());
-                file.flush();
-                loop.quit();
-                reply->deleteLater();
-            });
-            loop.exec();
-
-            if(i == 0){
-                player->setSource(QUrl("temp_video"));
-                player->play();
-            }
-            i+=len;
-        }while(len >= batch_size);
+        QMessageBox::information(this, "information", "file downloaded");
     });
 }
 
 WebComWidget::~WebComWidget()
 {
-    delete ui;
 }

@@ -16,7 +16,7 @@ set(PROJECT_SOURCES
         main.cpp
         webcomwidget.cpp
         webcomwidget.h
-        webcomwidget.ui
+
 )
 
 # QTP0002 정책 활성화
@@ -26,8 +26,11 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(WebCom
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-
-
+        searchpage.h searchpage.cpp
+        videoitem.h videoitem.cpp videoitem.ui
+        streamiodevice.h streamiodevice.cpp
+        search_page.qml
+        search_page.qrc
     )
 
 # Define target properties for Android with Qt 6 as:
@@ -48,6 +51,7 @@ else()
     endif()
 endif()
 
+qt_add_resources(WebCom "search_page.qrc")
 target_link_libraries(WebCom PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
 find_package(Qt6 COMPONENTS Network REQUIRED)
@@ -61,6 +65,12 @@ target_link_libraries(WebCom PRIVATE Qt6::Multimedia)
 
 find_package(Qt6 COMPONENTS MultimediaWidgets)
 target_link_libraries(WebCom PRIVATE Qt6::MultimediaWidgets)
+
+find_package(Qt6 REQUIRED COMPONENTS Quick)
+target_link_libraries(WebCom PRIVATE Qt6::Quick)
+
+find_package(Qt6 REQUIRED COMPONENTS QuickWidgets)
+target_link_libraries(WebCom PRIVATE Qt6::QuickWidgets)
 
 if(ANDROID)
     include(C:/Users/User/Desktop/android_openssl-master/android_openssl.cmake)
