@@ -3,8 +3,8 @@ import QtQuick.Controls
 
 Rectangle {
     visible: true
-    width: parent.width
-    height: parent.height
+    width: 400
+    height: 300
 
     ListView {
         id: listView
@@ -48,7 +48,7 @@ Rectangle {
                     id: removeBtn
                     anchors.right : parent.right
                     anchors.bottom: parent.bottom
-                    icon.source: "qrc:/x_icon.png"
+                    icon.source: "qrc:/icons/x_icon.png"
 
                     onClicked: {
                         var cindex = listView.currentIndex;
@@ -83,7 +83,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         x: parent.width - width
         y: parent.height - height
-        icon.source: "qrc:/back_icon.png"
+        icon.source: "qrc:/icons/back_icon.png"
         z:2
 
         onClicked:{

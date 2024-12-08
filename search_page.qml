@@ -3,8 +3,8 @@ import QtQuick.Controls
 
 Rectangle {
     visible: true
-    width: parent.width
-    height: parent.height
+    width: 400
+    height: 300
 
     Timer{
         id: informTimer
@@ -22,7 +22,7 @@ Rectangle {
         }
         color: "black"
         radius: 10
-        z: 4
+        z: 5
 
         Text{
             id: informationText
@@ -49,7 +49,7 @@ Rectangle {
         anchors.left: textField.right
         width: parent.width - textField.width
         height: textField.height
-        icon.source: "qrc:/search_icon.png"
+        icon.source: "qrc:/icons/search_icon.png"
         z: 1
 
         onPressed: {
@@ -161,14 +161,14 @@ Rectangle {
         Button{
             id: playButton
             objectName: "sub_player_play_btn"
-            icon.source: iconSource
             anchors.bottom: parent.bottom
             x: parent.width/2
             z: 3
             background: null
 
             property int status: 0
-            property string iconSource: "qrc:/pause_icon.png"
+            property string iconSource: "qrc:/icons/pause_icon.png"
+            icon.source: iconSource
 
             onClicked:{
                 if(playButton.status === 0) {text_inputer.pause();}
@@ -178,7 +178,7 @@ Rectangle {
         }
         Button{
             id: preButton
-            icon.source: "qrc:/pre_video_icon.png"
+            icon.source: "qrc:/icons/pre_video_icon.png"
             anchors.right: playButton.left
             y: playButton.y
             z: 3
@@ -188,7 +188,7 @@ Rectangle {
         }
         Button{
             id: nextButton
-            icon.source: "qrc:/next_video_icon.png"
+            icon.source: "qrc:/icons/next_video_icon.png"
             anchors.left: playButton.right
             y: playButton.y
             z:3
@@ -203,7 +203,7 @@ Rectangle {
             //mode 0: auto play, 1: repeat again, 2: play once the video
             property int mode: 0
             anchors{top: parent.top; right: parent.right}
-            icon.source: "qrc:/auto_replay_mode.png"
+            icon.source: "qrc:/icons/auto_replay_mode.png"
             background: null
             z: 3
 
@@ -211,15 +211,15 @@ Rectangle {
                 mode += 1;
                 if(mode >= 3){mode=0;}
 
-                if(mode === 0) {replayModeButton.icon.source = "qrc:/auto_replay_mode.png"}
-                else if(mode === 1) {replayModeButton.icon.source = "qrc:/again_replay_mode.png"}
-                else {replayModeButton.icon.source = "qrc:/x_icon.png"}
+                if(mode === 0) {replayModeButton.icon.source = "qrc:/icons/auto_replay_mode.png"}
+                else if(mode === 1) {replayModeButton.icon.source = "qrc:/icons/again_replay_mode.png"}
+                else {replayModeButton.icon.source = "qrc:/icons/x_icon.png"}
             }
         }
         Button{
             id: downloadButton
             anchors{top: parent.top; right: replayModeButton.left}
-            icon.source: "qrc:/download_icon.png"
+            icon.source: "qrc:/icons/download_icon.png"
             background: null
             z: 3
 
@@ -238,7 +238,7 @@ Rectangle {
         x: parent.width - width
         y: parent.height - height
         z: 2
-        icon.source: "qrc:/list_check_icon.png"
+        icon.source: "qrc:/icons/list_check_icon.png"
 
         onClicked: text_inputer.show_playlist();
     }

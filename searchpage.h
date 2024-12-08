@@ -6,7 +6,7 @@
 #include <QString>
 #include <QQuickWidget>
 
-#include "webcomwidget.h"
+#include "player.h"
 
 struct ListItem {
     QString name;
@@ -138,7 +138,7 @@ class SearchPage : public QWidget
     Q_OBJECT
 
 public:
-    explicit SearchPage(WebComWidget * w, QWidget* parent = nullptr);
+    explicit SearchPage(Player * p, QWidget* parent = nullptr);
     ~SearchPage();
 
     Q_INVOKABLE void set_text(const QString& str);
@@ -157,7 +157,7 @@ public:
     Q_INVOKABLE void download();
 
 private:
-    WebComWidget * wcw;
+    Player * player;
     SearchListModel slm;
     PlaylistModel plm;
     QString text;
@@ -171,5 +171,4 @@ private:
 
     void update_subplayer(bool video_enable);
 };
-
 #endif // SEARCHPAGE_H

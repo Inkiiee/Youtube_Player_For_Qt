@@ -1,7 +1,4 @@
 #include "streamiodevice.h"
-
-#include <QRegularExpression>
-#include <QRegularExpressionMatch>
 #include <QTimer>
 
 qint64 StreamIODevice::bytesAvailable() const{
@@ -12,7 +9,6 @@ qint64 StreamIODevice::bytesAvailable() const{
     for(qint64 i=block_num; virtual_buf.contains(i); i++)
         if(virtual_buf.at(i) != nullptr) size += (virtual_buf.at(i)->size());
 
-    qDebug()<<"bytesAvailable called..........................................."<<size;
     if(size < 0) return 0;
     else return size;
 }
@@ -23,41 +19,11 @@ void StreamIODevice::recv_data(qint64 start){
     else if(start > total_length && total_length != -1) return;
     virtual_buf[block_num] = nullptr;
 
-    QNetworkRequest stream_request(*request);
+    QNetworkRequest stream_request(request);
     stream_request.setRawHeader("Range", QString("bytes=%1-%2").arg(start).arg(start + (batch_size) -1).toUtf8());
-    QNetworkReply* reply = stream_manager->get(stream_request);
     qDebug()<<"--------------------------------------("<<start<<" ~ "<<start + batch_size - 1<<" current buf size: "<<size()<<" block "<<block_num;
-
-    QEventLoop loop;
-    QObject::connect(reply, &QNetworkReply::finished, [this, reply, &loop](){
-        if(reply->error() == QNetworkReply::NoError){
-            QString contentRange = QString::fromUtf8(reply->rawHeader("Content-Range"));
-            QRegularExpression regex(R"(bytes (\d+)-(\d+)/(\d+))");
-            QRegularExpressionMatch match = regex.match(contentRange);
-
-            qint64 start = match.captured(1).toLongLong();
-            qint64 end = match.captured(2).toLongLong();
-            qint64 total = match.captured(3).toLongLong();
-            qint64 block = start / batch_size;
-
-            qDebug() <<"start: "<<start<<" end: "<<end<<" total: "<<total;
-
-            if(block == 0) total_length = total;
-
-            QByteArray data = reply->readAll();
-            this->appendData(block, data);
-        }
-        else{
-            qDebug() << "Error:" << reply->error();
-            qDebug() << "Error String:" << reply->errorString();
-            qDebug() << "Response Code:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-            qDebug() << "Content Type:" << reply->header(QNetworkRequest::ContentTypeHeader).toString();
-            qDebug() << "Response Body:" << reply->readAll();
-        }
-        reply->deleteLater();
-        loop.quit();
-    });
-    loop.exec();
+    AsyncRecvBlock * receiver = new AsyncRecvBlock(stream_manager, &stream_request, this, block_num);
+    receiver->start();
 }
 
 bool StreamIODevice::isBlockAvailable(qint64 block){
@@ -75,7 +41,6 @@ void StreamIODevice::appendData(qint64 block_num, const QByteArray& data) {
         virtual_buf[block_num] = new QByteArray();
     if(virtual_buf[block_num]->isEmpty())
         virtual_buf[block_num]->append(data);
-    qDebug()<<"buffer fill --------- block: "<<block_num<<" data_size: "<<(double)(virtual_buf[block_num]->size()) / (1024 * 1024);
 
     emit readyRead(); // 데이터가 준비되었음을 알림
 }
@@ -86,13 +51,10 @@ bool StreamIODevice::isSequential() const  {
 }
 
 qint64 StreamIODevice::size() const  {
-    qDebug()<<"size called --------------------- size: "<<total_length;
-
     return total_length;
 }
 
 bool StreamIODevice::seek(qint64 pos)  {
-    qDebug()<<"seek---------------------------("<<pos;
     qint64 block_num = pos / batch_size;
 
     if(!virtual_buf.contains(block_num)){
@@ -136,7 +98,6 @@ qint64 StreamIODevice::readData(char* data, qint64 maxSize)  {
     qint64 read_bytes = qMin(maxSize, virtual_buf[block_num]->size() - block_pos);
     memcpy(data, virtual_buf[block_num]->constData() + block_pos, read_bytes);
     readIndex += read_bytes;
-    qDebug()<<"readData called ------- maxSize: "<<maxSize<<" read-bytes: "<<read_bytes<<" block: "<<block_num<<" block size: "<<bytesAvailable();
 
     qint64 temp = maxSize - read_bytes;
     if(temp > 0){
@@ -146,8 +107,6 @@ qint64 StreamIODevice::readData(char* data, qint64 maxSize)  {
             memcpy(data + read_bytes, virtual_buf[next_block]->constData(), read_len);
             read_bytes += read_len;
             readIndex += read_len;
-
-            qDebug()<<"\treadData block: "<<block_num<<" ~ "<<next_block<<" total read: "<<read_bytes<<" append read: "<<read_len;
         }
     }
 
@@ -157,9 +116,10 @@ qint64 StreamIODevice::readData(char* data, qint64 maxSize)  {
 
     for(qint64 i=1; i<block_num-2; i++){
         if(virtual_buf.contains(i)){
-            if(virtual_buf[i] != nullptr)
+            if(virtual_buf[i] != nullptr){
                 delete virtual_buf[i];
-            virtual_buf.erase(i);
+                virtual_buf.erase(i);
+            }
         }
     }
 
@@ -176,4 +136,5 @@ StreamIODevice::~StreamIODevice(){
     for(const auto& [key, val] : virtual_buf){
         if(val != nullptr) delete val;
     }
+    if(stream_manager != nullptr) stream_manager->deleteLater();
 }

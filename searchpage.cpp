@@ -1,7 +1,5 @@
 #include "searchpage.h"
 
-#include "searchpage.h"
-
 #include <QJsonDocument>
 #include <QVBoxLayout>
 #include <QJsonArray>
@@ -12,8 +10,8 @@
 #include <QQuickItem>
 #include <QFileDialog>
 
-SearchPage::SearchPage(WebComWidget * w, QWidget *parent)
-    : QWidget(parent), wcw(w), slm(this)
+SearchPage::SearchPage(Player * p, QWidget *parent)
+    : QWidget(parent), player(p), slm(this), plm(this)
 {
     // QQuickWidget 생성
     quickWidget = new QQuickWidget(this);
@@ -44,7 +42,7 @@ SearchPage::SearchPage(WebComWidget * w, QWidget *parent)
     if(playlist_quick->status() != QQuickWidget::Ready)
         qDebug()<<"QML load Error: "<<playlist_quick->errors();
 
-    QObject::connect(wcw, &WebComWidget::close_window, [this](){
+    QObject::connect(player, &Player::close_window, [this](){
         auto context = quickWidget->rootObject();
 
         auto subPlayer = context->findChild<QObject*>("sub_player");
@@ -58,53 +56,60 @@ SearchPage::SearchPage(WebComWidget * w, QWidget *parent)
         }
     });
 
-    QObject::connect(wcw, &WebComWidget::user_request, [this](int type){
-        if(type == wcw->refeat){
+    QObject::connect(player, &Player::user_request, [this](int type){
+        if(type == player->refeat){
             request_play_video(title, image, video, play_idx);
+            player->set_play_btn_icon_from_player(type);
         }
-        else if(type == wcw->pre_video){
+        else if(type == player->pre_video){
             pre_video();
+            player->set_play_btn_icon_from_player(type);
         }
-        else if(type == wcw->next_video){
+        else if(type == player->next_video){
             next_video();
+            player->set_play_btn_icon_from_player(type);
         }
-        else if(type == wcw->show_playlist){
+        else if(type == player->show_playlist){
             show_playlist();
-            wcw->close();
+            player->close();
         }
-        else if(type == wcw->end_video){
+        else if(type == player->end_video){
             auto qreplay_mode_button = quickWidget->rootObject()->findChild<QObject*>("replay_mode_button");
 
             if(qreplay_mode_button){
                 int mode = qreplay_mode_button->property("mode").toInt();
-                if(mode == 0) next_video();
-                else if(mode == 1) refeat();
+                if(mode == 0) player->request_next_video();
+                else if(mode == 1) player->request_repeat_video();
                 else{
                     auto qplay_btn = quickWidget->rootObject()->findChild<QObject*>("sub_player_play_btn");
                     if(qplay_btn){
-                        qplay_btn->setProperty("iconSource", "qrc:/refeat_icon.png");
+                        qplay_btn->setProperty("iconSource", "qrc:/icons/refeat_icon.png");
                         qplay_btn->setProperty("status", 2);
                     }
+
+                    player->set_play_btn_icon_from_player(type);
                 }
             }
-
         }
-        else if(type == wcw->req_pause)
+        else if(type == player->req_pause){
             pause();
-        else if(type == wcw->req_play)
+            player->set_play_btn_icon_from_player(type);
+        }
+        else if(type == player->req_play){
             play();
-        else if(type == wcw->download_video){
+            player->set_play_btn_icon_from_player(type);
+        }
+        else if(type == player->download_video){
             download();
         }
     });
-
 }
 
 void SearchPage::set_text(const QString& str){
     text = str;
     slm.clearItems();
 
-    QJsonArray contents = wcw->search_yt_contents(text);
+    QJsonArray contents = player->search(text);
     for(const auto& content: contents){
         QJsonObject obj = content.toObject()["videoRenderer"].toObject();
         if(obj.isEmpty()) continue;
@@ -113,13 +118,15 @@ void SearchPage::set_text(const QString& str){
         QString title = obj["title"].toObject()["runs"].toArray()[0].toObject()["text"].toString();
         QString video_id = obj["videoId"].toString();
 
+        if(thumbnail_url.contains("?"))
+            thumbnail_url = thumbnail_url.mid(0, thumbnail_url.indexOf("?"));
         slm.addItem(title, thumbnail_url, video_id);
     }
 }
 
 void SearchPage::request_play_video(const QString& name, const QString& image, const QString& video_id, int idx){
-    wcw->play_end();
-    wcw->play(video_id);
+    player->play_end();
+    player->play(video_id);
 
     this->image = image;
     this->title = name;
@@ -128,10 +135,11 @@ void SearchPage::request_play_video(const QString& name, const QString& image, c
     play_idx = idx;
     auto qplay_btn = quickWidget->rootObject()->findChild<QObject*>("sub_player_play_btn");
     if(qplay_btn){
-        qplay_btn->setProperty("iconSource", "qrc:/pause_icon.png");
+        qplay_btn->setProperty("iconSource", "qrc:/icons/pause_icon.png");
         qplay_btn->setProperty("status", 0);
     }
     update_subplayer(false);
+    player->set_title_from_player(title);
 }
 
 void SearchPage::show_search_page(){
@@ -150,12 +158,12 @@ void SearchPage::add_video(const QString& name, const QString& image, const QStr
     if(play_idx == -1){
         play_idx = 0;
         request_play_video(name, image, video_id, play_idx);
-        wcw->show();
+        player->show();
     }
 }
 
 void SearchPage::show_video(){
-    wcw->show();
+    player->show();
 }
 
 void SearchPage::update_subplayer(bool video_enable){
@@ -196,30 +204,30 @@ void SearchPage::remove_video(int idx){
 }
 
 void SearchPage::pause(){
-    wcw->pause_video();
+    player->pause_video();
 
     auto qplay_btn = quickWidget->rootObject()->findChild<QObject*>("sub_player_play_btn");
     if(qplay_btn){
-        qplay_btn->setProperty("iconSource", "qrc:/play_icon.png");
+        qplay_btn->setProperty("iconSource", "qrc:/icons/play_icon.png");
         qplay_btn->setProperty("status", 1);
     }
 }
 void SearchPage::play(){
-    wcw->play_video();
+    player->play_video();
 
     auto qplay_btn = quickWidget->rootObject()->findChild<QObject*>("sub_player_play_btn");
     if(qplay_btn){
-        qplay_btn->setProperty("iconSource", "qrc:/pause_icon.png");
+        qplay_btn->setProperty("iconSource", "qrc:/icons/pause_icon.png");
         qplay_btn->setProperty("status", 0);
     }
 }
 void SearchPage::refeat(){
-    wcw->play_end();
-    wcw->play(video);
+    player->play_end();
+    player->play(video);
 
     auto qplay_btn = quickWidget->rootObject()->findChild<QObject*>("sub_player_play_btn");
     if(qplay_btn){
-        qplay_btn->setProperty("iconSource", "qrc:/pause_icon.png");
+        qplay_btn->setProperty("iconSource", "qrc:/icons/pause_icon.png");
         qplay_btn->setProperty("status", 0);
     }
 }
@@ -246,23 +254,27 @@ void SearchPage::next_video(){
     }
 }
 void SearchPage::download(){
+    QString path;
     QFileDialog fd;
     fd.setFileMode(QFileDialog::Directory);
     fd.setOption(QFileDialog::ShowDirsOnly);
     pause();
-    fd.exec();
+    if(fd.exec() == QFileDialog::Accepted)
+        path = fd.selectedFiles()[0];
     play();
 
-    QString path = fd.selectedFiles()[0];
+    if(path.isEmpty()) return;
+
     auto video = plm.get_play_video(play_idx);
     QString video_name = video.name;
     QString invalid_chars = "<>:/\\?*";
     for(auto ic: invalid_chars)
         video_name = video_name.remove(ic);
 
-    wcw->download(path + "/" + video_name);
+    player->download(path + "/" + video_name);
 }
 
 SearchPage::~SearchPage()
 {
 }
+
