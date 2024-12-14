@@ -1,0 +1,29 @@
+<RCC>
+    <qresource prefix="/">
+        <file>play_list.qml</file>
+        <file>search_page.qml</file>
+        <file>icons/again_replay_mode.png</file>
+        <file>icons/auto_replay_mode.png</file>
+        <file>icons/back_icon.png</file>
+        <file>icons/download_icon.png</file>
+        <file>icons/list_check_icon.png</file>
+        <file>icons/next_video_icon.png</file>
+        <file>icons/pause_icon.png</file>
+        <file>icons/play_icon.png</file>
+        <file>icons/pre_video_icon.png</file>
+        <file>icons/refeat_icon.png</file>
+        <file>icons/search_icon.png</file>
+        <file>icons/x_icon.png</file>
+        <file>player_quick.qml</file>
+        <file>icons/play_fill_icon.png</file>
+        <file>icons/playlist_icon.png</file>
+        <file>icons/skip_back_icon.png</file>
+        <file>icons/skip_foward_icon.png</file>
+        <file>icons/video_again_icon.png</file>
+        <file>icons/video_pause_icon.png</file>
+        <file>icons/volume_icon.png</file>
+        <file>icons/volume_off_icon.png</file>
+        <file>icons/video_download_icon.png</file>
+        <file>icons/option_icon.png</file>
+    </qresource>
+</RCC>
