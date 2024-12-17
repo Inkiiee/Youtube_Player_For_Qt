@@ -67,7 +67,12 @@ public:
         manager = new QNetworkAccessManager(this);
         manager->setCookieJar(m->cookieJar());
         request.setUrl(r->url());
-        request.setHeaders(r->headers());
+
+        for(const auto& header: r->rawHeaderList()){
+            QByteArray value = r->rawHeader(header);
+            request.setRawHeader(header, value);
+        }
+
         qDebug()<<"ready async recv block: "<<block;
     }
     void start(){

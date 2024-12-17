@@ -155,6 +155,18 @@ public:
     Q_INVOKABLE void next_video();
     Q_INVOKABLE void pre_video();
     Q_INVOKABLE void download();
+protected:
+    void keyPressEvent(QKeyEvent *event) override {
+        if (event->key() == Qt::Key_Back) {
+            if(playlist_quick->isHidden() && player->isHidden())
+                QCoreApplication::quit(); // 앱 종료
+            else
+                show_search_page();
+            event->accept();
+        } else {
+            QWidget::keyPressEvent(event);
+        }
+    }
 
 private:
     Player * player;

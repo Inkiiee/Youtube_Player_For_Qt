@@ -55,6 +55,14 @@ protected:
     void closeEvent(QCloseEvent * ce) override{
         emit close_window();
     }
+    void keyPressEvent(QKeyEvent *event) override {
+        if (event->key() == Qt::Key_Back) {
+            request_show_playlist();
+            event->accept();
+        } else {
+            QWidget::keyPressEvent(event);
+        }
+    }
 private:
     QMediaPlayer * player;
     QQuickWidget * video_quick;

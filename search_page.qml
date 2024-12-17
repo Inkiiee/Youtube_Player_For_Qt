@@ -20,7 +20,9 @@ Rectangle {
             horizontalCenter: parent.horizontalCenter
             verticalCenter: parent.verticalCenter
         }
-        color: "black"
+        width: parent.width
+        height: parent.height / 3
+        color: "blue"
         radius: 10
         z: 5
 

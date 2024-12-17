@@ -9,11 +9,24 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(ANDROID_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/android/AndroidManifest.xml
+    ${CMAKE_CURRENT_SOURCE_DIR}/android/build.gradle
+    ${CMAKE_CURRENT_SOURCE_DIR}/android/res/values/libs.xml
+    ${CMAKE_CURRENT_SOURCE_DIR}/android/res/xml/qtprovider_paths.xml
+    ${CMAKE_CURRENT_SOURCE_DIR}/android/gradle/wrapper/gradle-wrapper.jar
+    ${CMAKE_CURRENT_SOURCE_DIR}/android/gradle/wrapper/gradle-wrapper.properties
+    ${CMAKE_CURRENT_SOURCE_DIR}/android/gradle.properties
+    ${CMAKE_CURRENT_SOURCE_DIR}/android/gradlew
+    ${CMAKE_CURRENT_SOURCE_DIR}/android/gradlew.bat
+)
+
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 set(PROJECT_SOURCES
         main.cpp
+        ${ANDROID_FILES}
 )
 
 # QTP0002 정책 활성화
@@ -29,7 +42,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         player.h player.cpp
         streamiodevice.h streamiodevice.cpp
         itag.h itag.cpp
-
+        android/src/MyActivity.java
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET YoutubePlayer APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -71,18 +84,28 @@ target_link_libraries(YoutubePlayer PRIVATE Qt6::QuickWidgets)
 
 target_link_libraries(YoutubePlayer PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
+include(C:/Users/User/AppData/Local/Android/Sdk/android_openssl/android_openssl.cmake)
+if (ANDROID)
+    add_android_openssl_libraries(YoutubePlayer)
+endif()
+
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.
 if(${QT_VERSION} VERSION_LESS 6.1.0)
   set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.YoutubePlayer)
 endif()
+
 set_target_properties(YoutubePlayer PROPERTIES
     ${BUNDLE_ID_OPTION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
+)
+
+set_property(TARGET YoutubePlayer APPEND PROPERTY
+    QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
 )
 
 include(GNUInstallDirs)
